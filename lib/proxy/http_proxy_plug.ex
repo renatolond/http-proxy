@@ -1,6 +1,6 @@
 defmodule Proxy.HttpProxyPlug do
   import Plug.Conn
-  alias Proxy.{Cache, Utils}
+  alias Proxy.{Utils}
 
   def init(opts), do: opts
 
@@ -9,12 +9,20 @@ defmodule Proxy.HttpProxyPlug do
     body = Utils.build_body conn
     method = String.to_atom(conn.method)
 
-    case HTTPoison.request(method, url, body, conn.req_headers) do
+    proxies = [
+    ]
+
+    { proxy_info, proxy_auth } = Enum.random(proxies)
+
+    conn_options = [
+      {:proxy, proxy_info},
+      {:proxy_auth, proxy_auth}
+    ]
+
+    case HTTPoison.request(method, url, body, conn.req_headers, conn_options) do
       {:ok, resp} ->
         headers = List.keydelete resp.headers, "Transfer-Encoding", 0
         if method == :GET do
-          # Cache GET requests only
-          Cache.insert(url, %{resp | headers: headers})
         end
         %{conn | resp_headers: headers}
         |> send_resp(resp.status_code, resp.body)
